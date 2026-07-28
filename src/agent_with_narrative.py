@@ -9,39 +9,65 @@ from openai import OpenAI
 
 
 # =============================================================================
-# DISPLAY HELPERS
+# DEBUG SETTING
 # =============================================================================
 
-def print_banner(title: str) -> None:
-    """
-    Print a large section heading.
+# True:
+#   Display detailed information about API calls, conversation history,
+#   tool requests, tool execution, and agent iterations.
+#
+# False:
+#   Display only the normal command-line interface and final answers.
+DEBUG = True
 
-    This does not affect the agent.
-    It only makes the terminal output easier to follow.
+
+# =============================================================================
+# DEBUG DISPLAY HELPERS
+# =============================================================================
+
+def debug_print(*values: Any) -> None:
     """
+    Print values only when DEBUG is enabled.
+
+    This replaces ordinary print() calls used for diagnostic information.
+    """
+    if DEBUG:
+        print(*values)
+
+
+def debug_banner(title: str) -> None:
+    """
+    Print a large section heading only when DEBUG is enabled.
+    """
+    if not DEBUG:
+        return
+
     print("\n")
     print("=" * 80)
     print(title.center(80))
     print("=" * 80)
 
 
-def print_json(data: Any) -> None:
+def debug_json(data: Any) -> None:
     """
-    Pretty-print Python dictionaries and lists as formatted JSON.
+    Pretty-print data as JSON only when DEBUG is enabled.
 
-    default=str prevents printing errors if an object contains a value
-    that JSON does not normally understand, such as a datetime.
+    default=str prevents errors for values that JSON does not normally
+    understand, such as datetime objects.
     """
-    print(json.dumps(data, indent=4, default=str))
+    if DEBUG:
+        print(json.dumps(data, indent=4, default=str))
 
 
-def print_conversation(input_items: list[Any]) -> None:
+def debug_conversation(input_items: list[Any]) -> None:
     """
-    Show everything currently stored in the agent's conversation.
+    Display the complete agent conversation only when DEBUG is enabled.
 
-    Some items are ordinary dictionaries that we created.
-    Other items are response objects returned by the OpenAI SDK.
+    Some conversation items are ordinary dictionaries.
+    Others are OpenAI SDK objects that provide model_dump().
     """
+    if not DEBUG:
+        return
 
     print(f"\nThe conversation contains {len(input_items)} item(s):")
 
@@ -50,27 +76,24 @@ def print_conversation(input_items: list[Any]) -> None:
         print(f"Conversation item {index}")
         print("-" * 80)
 
-        # OpenAI SDK response objects are Pydantic models.
-        # model_dump() converts them into ordinary Python dictionaries.
         if hasattr(item, "model_dump"):
-            print_json(item.model_dump())
+            debug_json(item.model_dump())
         else:
-            print_json(item)
+            debug_json(item)
 
 
 # =============================================================================
 # LOAD CONFIGURATION
 # =============================================================================
 
-print_banner("STARTING THE PROGRAM")
+debug_banner("STARTING THE PROGRAM")
 
-print("\nStep 1: Loading variables from the .env file.")
+debug_print("\nStep 1: Loading variables from the .env file.")
 
-# load_dotenv() searches for a .env file and loads its values
-# into the program's environment.
+# Load variables from the local .env file into the environment.
 load_dotenv()
 
-print("Step 2: Looking for OPENAI_API_KEY.")
+debug_print("Step 2: Looking for OPENAI_API_KEY.")
 
 api_key = os.getenv("OPENAI_API_KEY")
 
@@ -80,15 +103,15 @@ if not api_key:
         "Add it to your .env file before running the program."
     )
 
-# Do not print the actual API key.
-print("OPENAI_API_KEY was found.")
+# Never print the actual API key.
+debug_print("OPENAI_API_KEY was found.")
 
-print("Step 3: Creating the OpenAI client.")
+debug_print("Step 3: Creating the OpenAI client.")
 
-# The OpenAI client reads OPENAI_API_KEY from the environment.
+# OpenAI() automatically reads OPENAI_API_KEY from the environment.
 client = OpenAI()
 
-print("OpenAI client created successfully.")
+debug_print("OpenAI client created successfully.")
 
 
 # =============================================================================
@@ -104,55 +127,54 @@ def get_current_time(timezone: str) -> str:
         America/Los_Angeles
         Europe/London
 
-    Important:
-        This is an ordinary Python function.
+    This is an ordinary Python function.
 
-        The model cannot execute this function directly.
-        The model can only ask our Python program to execute it.
+    The model cannot execute it directly. The model can only ask our
+    Python program to execute it.
     """
 
-    print_banner("PYTHON TOOL: GET CURRENT TIME")
+    debug_banner("PYTHON TOOL: GET CURRENT TIME")
 
-    print("\nThe get_current_time() Python function has started.")
-    print(f"Timezone received by the function: {timezone}")
+    debug_print("\nThe get_current_time() Python function has started.")
+    debug_print(f"Timezone received by the function: {timezone}")
 
     try:
-        print("\nPython is creating a ZoneInfo object.")
+        debug_print("\nPython is creating a ZoneInfo object.")
 
         timezone_object = ZoneInfo(timezone)
 
-        print("Python is reading the current time in that timezone.")
+        debug_print("Python is reading the current time in that timezone.")
 
         current_time = datetime.now(timezone_object)
 
-        print(f"Current datetime object: {current_time}")
+        debug_print(f"Current datetime object: {current_time}")
 
         result = {
             "timezone": timezone,
             "datetime": current_time.isoformat(),
         }
 
-        print("\nThe tool created this result:")
-        print_json(result)
+        debug_print("\nThe tool created this result:")
+        debug_json(result)
 
-        print("\nThe result will be converted into a JSON string.")
+        debug_print("\nThe result will be converted into a JSON string.")
 
         result_json = json.dumps(result)
 
-        print("The get_current_time() tool has finished.")
+        debug_print("The get_current_time() tool has finished.")
 
         return result_json
 
     except Exception as exc:
-        print("\nThe time tool encountered an error.")
-        print(f"Python error: {exc}")
+        debug_print("\nThe time tool encountered an error.")
+        debug_print(f"Python error: {exc}")
 
         error_result = {
             "error": f"Unable to read timezone: {exc}",
         }
 
-        print("\nThe tool will return this error to the model:")
-        print_json(error_result)
+        debug_print("\nThe tool will return this error to the model:")
+        debug_json(error_result)
 
         return json.dumps(error_result)
 
@@ -161,17 +183,17 @@ def get_current_time(timezone: str) -> str:
 # TOOL DEFINITIONS SHOWN TO THE MODEL
 # =============================================================================
 
-# This does not execute the function.
+# This does not execute the tool.
 #
-# It is a description of the function that is sent to the model.
-# The description tells the model:
+# It describes the tool to the model:
 #
-#   1. The name of the available tool
+#   1. The tool's name
 #   2. What the tool does
-#   3. What arguments the tool requires
+#   3. What arguments it accepts
+#   4. Which arguments are required
 #
-# The model uses this information to decide whether it wants Python
-# to execute the tool.
+# The model uses this description to decide whether it should request
+# that Python execute the tool.
 
 TOOLS = [
     {
@@ -201,30 +223,33 @@ TOOLS = [
 # TOOL ROUTER
 # =============================================================================
 
-def execute_tool(tool_name: str, arguments: dict[str, Any]) -> str:
+def execute_tool(
+    tool_name: str,
+    arguments: dict[str, Any],
+) -> str:
     """
     Route a model-requested tool call to the correct Python function.
 
-    The model returns the name of the tool it wants to use.
-    This router matches that name to an actual Python function.
+    The model supplies a tool name. This router matches that name to an
+    actual Python function.
     """
 
-    print_banner("TOOL ROUTER")
+    debug_banner("TOOL ROUTER")
 
-    print("\nThe model requested a tool.")
-    print(f"Requested tool name: {tool_name}")
-    print("Arguments received by the router:")
-    print_json(arguments)
+    debug_print("\nThe model requested a tool.")
+    debug_print(f"Requested tool name: {tool_name}")
+    debug_print("Arguments received by the router:")
+    debug_json(arguments)
 
     if tool_name == "get_current_time":
-        print("\nA matching Python function was found.")
-        print("The router is calling get_current_time().")
+        debug_print("\nA matching Python function was found.")
+        debug_print("The router is calling get_current_time().")
 
         return get_current_time(
             timezone=arguments["timezone"],
         )
 
-    print("\nNo matching Python function was found.")
+    debug_print("\nNo matching Python function was found.")
 
     return json.dumps(
         {
@@ -241,22 +266,21 @@ def run_agent(user_message: str) -> str:
     """
     Run one complete agent session.
 
-    The loop continues until one of two things happens:
+    The loop continues until:
 
-        1. The model returns a final answer without requesting a tool.
+        1. The model returns a final answer without requesting a tool, or
         2. The maximum number of iterations is reached.
 
-    Each pass through the loop is one API request.
+    Each iteration can make one API request.
     """
 
-    print_banner("NEW AGENT RUN")
+    debug_banner("NEW AGENT RUN")
 
-    print("\nThe user asked:")
-    print(user_message)
+    debug_print("\nThe user asked:")
+    debug_print(user_message)
 
-    print("\nCreating the initial conversation history.")
+    debug_print("\nCreating the initial conversation history.")
 
-    # The first item in the conversation is the user's message.
     input_items: list[Any] = [
         {
             "role": "user",
@@ -264,38 +288,32 @@ def run_agent(user_message: str) -> str:
         }
     ]
 
-    # This is a safety limit.
-    #
-    # Without a limit, a badly behaving agent could continue calling tools
-    # and making API requests indefinitely.
+    # This prevents an accidental infinite agent loop.
     max_iterations = 10
 
-    print(f"Maximum permitted iterations: {max_iterations}")
+    debug_print(f"Maximum permitted iterations: {max_iterations}")
 
     for iteration in range(max_iterations):
-        print_banner(f"AGENT ITERATION {iteration + 1}")
+        debug_banner(f"AGENT ITERATION {iteration + 1}")
 
-        print_conversation(input_items)
+        debug_conversation(input_items)
 
-        print_banner("CALLING THE OPENAI API")
+        debug_banner("CALLING THE OPENAI API")
 
-        print(
-            "\nThis is the point where our Python program sends the following "
-            "information to the model:"
+        debug_print(
+            "\nPython is sending the following information to the model:"
         )
-        print("  1. The agent instructions")
-        print("  2. The available tool descriptions")
-        print("  3. The conversation so far")
+        debug_print("  1. The agent instructions")
+        debug_print("  2. The available tool descriptions")
+        debug_print("  3. The conversation so far")
+        debug_print("\nSending the request now...")
 
-        print("\nSending the request now...")
-
-        # This is the only place in this program where we call OpenAI.
+        # This is where the program communicates with OpenAI.
         #
-        # The model receives the conversation and tool definitions.
-        # It can either:
+        # The model can:
         #
         #   1. Return a final answer
-        #   2. Request that Python execute a tool
+        #   2. Request one or more tools
         response = client.responses.create(
             model="gpt-5.5",
             instructions=(
@@ -307,69 +325,69 @@ def run_agent(user_message: str) -> str:
             input=input_items,
         )
 
-        print("\nA response was received from OpenAI.")
+        debug_print("\nA response was received from OpenAI.")
 
-        print_banner("RESPONSE SUMMARY")
+        debug_banner("RESPONSE SUMMARY")
 
-        print(f"\nResponse ID: {response.id}")
-        print(f"Final text currently available: {response.output_text!r}")
-        print(f"Number of output items: {len(response.output)}")
+        debug_print(f"\nResponse ID: {response.id}")
+        debug_print(
+            f"Final text currently available: {response.output_text!r}"
+        )
+        debug_print(f"Number of output items: {len(response.output)}")
 
-        print("\nOutput item types:")
+        debug_print("\nOutput item types:")
 
         for index, item in enumerate(response.output, start=1):
-            print(f"  Item {index}: {item.type}")
+            debug_print(f"  Item {index}: {item.type}")
 
-        print_banner("RAW RESPONSE OUTPUT")
+        debug_banner("RAW RESPONSE OUTPUT")
 
-        print(
-            "\nThe following output was returned by the model. "
-            "This may contain messages, reasoning items, or function calls."
+        debug_print(
+            "\nThe model returned the following output items."
         )
 
         for index, item in enumerate(response.output, start=1):
-            print("\n" + "-" * 80)
-            print(f"Response output item {index}")
-            print("-" * 80)
+            if DEBUG:
+                print("\n" + "-" * 80)
+                print(f"Response output item {index}")
+                print("-" * 80)
 
             if hasattr(item, "model_dump"):
-                print_json(item.model_dump())
+                debug_json(item.model_dump())
             else:
-                print(item)
+                debug_print(item)
 
-        print_banner("UPDATING CONVERSATION HISTORY")
+        debug_banner("UPDATING CONVERSATION HISTORY")
 
-        # Everything returned by the model must be preserved.
+        # Preserve everything returned by the model.
         #
-        # This can include:
-        #   - Assistant messages
-        #   - Function calls
-        #   - Other response items
-        #
-        # On the next iteration, the model needs this history so it knows
-        # what it previously requested.
+        # The next request needs this history so the model remembers what
+        # it previously said or requested.
         input_items.extend(response.output)
 
-        print(
+        debug_print(
             "\nThe model's output has been added to the conversation history."
         )
 
-        print_banner("SEARCHING FOR TOOL CALLS")
+        debug_banner("SEARCHING FOR TOOL CALLS")
 
-        # Search all output items for items whose type is function_call.
         function_calls = [
             item
             for item in response.output
             if item.type == "function_call"
         ]
 
-        print(f"\nNumber of function calls found: {len(function_calls)}")
+        debug_print(
+            f"\nNumber of function calls found: {len(function_calls)}"
+        )
 
-        # If the model did not request a function, it has finished.
+        # No tool call means the model has finished.
         if not function_calls:
-            print("\nNo tool calls were requested.")
-            print("The model believes it has enough information to answer.")
-            print("The agent loop is finished.")
+            debug_print("\nNo tool calls were requested.")
+            debug_print(
+                "The model believes it has enough information to answer."
+            )
+            debug_print("The agent loop is finished.")
 
             final_answer = response.output_text
 
@@ -378,7 +396,7 @@ def run_agent(user_message: str) -> str:
 
             return final_answer
 
-        print(
+        debug_print(
             "\nThe model requested one or more tools. "
             "Python will execute each request."
         )
@@ -387,24 +405,28 @@ def run_agent(user_message: str) -> str:
             function_calls,
             start=1,
         ):
-            print_banner(
+            debug_banner(
                 f"PROCESSING TOOL CALL {tool_number} "
                 f"OF {len(function_calls)}"
             )
 
-            print(f"\nTool name: {function_call.name}")
-            print(f"Tool call ID: {function_call.call_id}")
-            print(f"Raw JSON arguments: {function_call.arguments}")
+            debug_print(f"\nTool name: {function_call.name}")
+            debug_print(f"Tool call ID: {function_call.call_id}")
+            debug_print(
+                f"Raw JSON arguments: {function_call.arguments}"
+            )
 
             try:
-                print("\nConverting the JSON arguments into a Python dictionary.")
+                debug_print(
+                    "\nConverting the JSON arguments into a Python dictionary."
+                )
 
                 arguments = json.loads(function_call.arguments)
 
-                print("Converted Python dictionary:")
-                print_json(arguments)
+                debug_print("Converted Python dictionary:")
+                debug_json(arguments)
 
-                print("\nPassing the request to the tool router.")
+                debug_print("\nPassing the request to the tool router.")
 
                 result = execute_tool(
                     tool_name=function_call.name,
@@ -412,8 +434,10 @@ def run_agent(user_message: str) -> str:
                 )
 
             except json.JSONDecodeError as exc:
-                print("\nPython could not decode the tool arguments as JSON.")
-                print(f"JSON error: {exc}")
+                debug_print(
+                    "\nPython could not decode the tool arguments as JSON."
+                )
+                debug_print(f"JSON error: {exc}")
 
                 result = json.dumps(
                     {
@@ -422,8 +446,8 @@ def run_agent(user_message: str) -> str:
                 )
 
             except KeyError as exc:
-                print("\nA required tool argument was missing.")
-                print(f"Missing argument: {exc}")
+                debug_print("\nA required tool argument was missing.")
+                debug_print(f"Missing argument: {exc}")
 
                 result = json.dumps(
                     {
@@ -432,8 +456,10 @@ def run_agent(user_message: str) -> str:
                 )
 
             except TypeError as exc:
-                print("\nThe tool arguments had an invalid Python type.")
-                print(f"Type error: {exc}")
+                debug_print(
+                    "\nThe tool arguments had an invalid Python type."
+                )
+                debug_print(f"Type error: {exc}")
 
                 result = json.dumps(
                     {
@@ -442,8 +468,10 @@ def run_agent(user_message: str) -> str:
                 )
 
             except Exception as exc:
-                print("\nAn unexpected error occurred while executing the tool.")
-                print(f"Unexpected error: {exc}")
+                debug_print(
+                    "\nAn unexpected error occurred while executing the tool."
+                )
+                debug_print(f"Unexpected error: {exc}")
 
                 result = json.dumps(
                     {
@@ -451,22 +479,22 @@ def run_agent(user_message: str) -> str:
                     }
                 )
 
-            print_banner("TOOL EXECUTION COMPLETE")
+            debug_banner("TOOL EXECUTION COMPLETE")
 
-            print("\nThe Python tool returned this JSON string:")
-            print(result)
+            debug_print("\nThe Python tool returned this JSON string:")
+            debug_print(result)
 
-            print_banner("RETURNING TOOL OUTPUT TO THE MODEL")
+            debug_banner("RETURNING TOOL OUTPUT TO THE MODEL")
 
-            print(
+            debug_print(
                 "\nThe tool result does not go directly to the user."
             )
-            print(
+            debug_print(
                 "It is added to the conversation and sent back to the model."
             )
-            print(
-                "The call_id connects this result to the model's original "
-                "tool request."
+            debug_print(
+                "The call_id connects the result to the model's "
+                "original tool request."
             )
 
             tool_output_item = {
@@ -475,26 +503,27 @@ def run_agent(user_message: str) -> str:
                 "output": result,
             }
 
-            print("\nThe following conversation item will be added:")
-            print_json(tool_output_item)
+            debug_print(
+                "\nThe following conversation item will be added:"
+            )
+            debug_json(tool_output_item)
 
             input_items.append(tool_output_item)
 
-        print_banner("ITERATION COMPLETE")
+        debug_banner("ITERATION COMPLETE")
 
-        print(
-            "\nAll requested tools have been executed and their results "
-            "have been added to the conversation."
+        debug_print(
+            "\nAll requested tools were executed and their results "
+            "were added to the conversation."
         )
-        print(
-            "The loop will now make another API request so the model can "
-            "inspect the results."
+        debug_print(
+            "The loop will make another API request so the model "
+            "can inspect the tool results."
         )
-        print(
-            "The model may request another tool or return its final answer."
+        debug_print(
+            "The model may request another tool or return a final answer."
         )
 
-    # The loop only reaches this line if it uses every permitted iteration.
     raise RuntimeError(
         f"Agent exceeded the maximum of {max_iterations} iterations."
     )
@@ -508,11 +537,18 @@ def main() -> None:
     """
     Run the terminal interface.
 
-    This outer loop lets the user submit multiple independent questions.
-    Each question starts a new run_agent() session.
+    Each user question starts a new run_agent() session.
     """
 
-    print_banner("SIMPLE AI AGENT")
+    print("=" * 80)
+    print("SIMPLE AI AGENT".center(80))
+    print("=" * 80)
+
+    if DEBUG:
+        print("\nDebug mode: ON")
+        print("Detailed agent activity will be displayed.")
+    else:
+        print("\nDebug mode: OFF")
 
     print("\nThe agent is ready.")
     print("Type 'quit' or 'exit' to stop the program.")
@@ -520,12 +556,10 @@ def main() -> None:
     while True:
         user_message = input("\nYou: ").strip()
 
-        # Ignore an empty input and ask again.
         if not user_message:
             print("No message was entered.")
             continue
 
-        # End the program when the user types quit or exit.
         if user_message.lower() in {"quit", "exit"}:
             print("\nClosing the agent.")
             break
@@ -533,26 +567,21 @@ def main() -> None:
         try:
             answer = run_agent(user_message)
 
-            print_banner("FINAL ANSWER")
+            if DEBUG:
+                debug_banner("FINAL ANSWER")
+
             print(f"\nAgent: {answer}")
 
         except KeyboardInterrupt:
-            print("\n\nThe current operation was interrupted by the user.")
+            print("\n\nThe current operation was interrupted.")
 
         except Exception as exc:
-            print_banner("ERROR")
-            print(f"\nThe agent encountered an error: {exc}")
+            print(f"\nError: {exc}")
 
 
 # =============================================================================
 # PROGRAM ENTRY POINT
 # =============================================================================
 
-# Python sets __name__ to "__main__" when this file is run directly:
-#
-#     python agent.py
-#
-# This prevents main() from running automatically if this file is imported
-# into another Python file.
 if __name__ == "__main__":
     main()
