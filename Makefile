@@ -1,9 +1,22 @@
+
+
+
 # =============================================================================
 # AI Agent Makefile
 # =============================================================================
 
 IMAGE_NAME = ai-agent
 
+
+help:
+	@echo "Available commands:"
+	@echo "  make build     Build the Docker image"
+	@echo "  make run       Run the AI agent"
+	@echo "  make rebuild   Build and then run"
+	@echo "  make images    Show Docker images"
+	@echo "  make ps        Show running containers"
+	@echo "  make clean     Remove the Docker image"
+	
 # -----------------------------------------------------------------------------
 # Build the Docker image
 # -----------------------------------------------------------------------------

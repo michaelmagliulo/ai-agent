@@ -2,7 +2,11 @@ Yes. If you've created or modified files **since your last commit**, you need to
 
 Here's the workflow:
 
-### 1. Check what changed
+
+### 1. check repository connection
+git remote -v
+
+### 1.5 Check what changed
 
 ```bash
 git status
@@ -17,6 +21,7 @@ modified: docs/git_internals.md
 ```
 
 then those changes are **not** in your last commit yet.
+
 
 ### 2. Stage the changes
 
