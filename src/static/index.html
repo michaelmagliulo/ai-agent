@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Agent</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 0 20px;
+        }
+
+        #messages {
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            min-height: 400px;
+            padding: 16px;
+            margin-bottom: 16px;
+            overflow-y: auto;
+        }
+
+        .message {
+            margin-bottom: 14px;
+            padding: 10px 12px;
+            border-radius: 8px;
+        }
+
+        .user {
+            background: #e8f0fe;
+        }
+
+        .agent {
+            background: #f1f1f1;
+        }
+
+        form {
+            display: flex;
+            gap: 8px;
+        }
+
+        input {
+            flex: 1;
+            padding: 12px;
+            font-size: 16px;
+        }
+
+        button {
+            padding: 12px 18px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>AI Agent</h1>
+
+    <div id="messages"></div>
+
+    <form id="chat-form">
+        <input
+            id="message-input"
+            type="text"
+            placeholder="Type a message..."
+            autocomplete="off"
+            required
+        >
+        <button type="submit">Send</button>
+    </form>
+
+    <script>
+        const form = document.getElementById("chat-form");
+        const input = document.getElementById("message-input");
+        const messages = document.getElementById("messages");
+
+        function addMessage(text, type) {
+            const message = document.createElement("div");
+            message.className = `message ${type}`;
+            message.textContent = text;
+            messages.appendChild(message);
+            messages.scrollTop = messages.scrollHeight;
+        }
+
+        form.addEventListener("submit", async (event) => {
+            event.preventDefault();
+
+            const userMessage = input.value.trim();
+
+            if (!userMessage) {
+                return;
+            }
+
+            addMessage(`You: ${userMessage}`, "user");
+            input.value = "";
+            input.disabled = true;
+
+            try {
+                const response = await fetch("/chat", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        message: userMessage
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Request failed: ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                addMessage(`Agent: ${data.answer}`, "agent");
+            } catch (error) {
+                addMessage(`Error: ${error.message}`, "agent");
+            } finally {
+                input.disabled = false;
+                input.focus();
+            }
+        });
+    </script>
+</body>
+</html>

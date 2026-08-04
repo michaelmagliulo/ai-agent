@@ -10,4 +10,5 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the project into the image.
 COPY src/ ./src/
 
-CMD ["python", "src/agent_with_narrative.py"]
+#CMD ["python", "src/agent_with_narrative.py"]
+CMD ["uvicorn", "src.server:app", "--host", "0.0.0.0", "--port", "8000"]
