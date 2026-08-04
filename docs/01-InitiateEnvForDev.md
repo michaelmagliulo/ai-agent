@@ -147,3 +147,7 @@ Eventually you'll have your own cookbook for things you don't do every day.
 ### One thing I'd like to fix soon
 
 I remember you mentioning that `code .` keeps opening an **"Untitled Workspace"** instead of just opening the folder. We never fully resolved that. Once we finish CI, I'd like to help you fix that annoyance because it'll make working with the Dev Container much smoother every day.
+
+
+# Start Server
+uvicorn src.server:app --host 0.0.0.0 --port 8000

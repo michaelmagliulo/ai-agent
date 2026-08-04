@@ -34,7 +34,7 @@ git add .
 For example:
 
 ```bash
-git commit -m "Add Git documentation"
+git commit -m "Add .."
 ```
 
 ### 4. Push
