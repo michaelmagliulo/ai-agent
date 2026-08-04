@@ -29,3 +29,23 @@ jobs:
 
       - name: Build Docker image
         run: docker build -t ai-agent .
+
+  deploy:
+    name: Deploy to AI server
+    needs: test-and-build
+
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    runs-on:
+      - self-hosted
+      - linux
+      - x64
+
+    steps:
+      - name: Update and restart AI agent
+        run: |
+          cd /home/mmag/projects/ai-agent
+          git fetch origin main
+          git reset --hard origin/main
+          docker compose up -d --build
+          docker compose ps
